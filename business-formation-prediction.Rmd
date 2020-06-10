@@ -1,0 +1,239 @@
+---
+title: "Untitled"
+author: "Matt Twigg"
+date: "June 10, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Introduction#
+This practicum intends to look at business growth and predicting that growth
+
+#Exploration#
+
+
+```{r libraries}
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(forcats)
+
+```
+load business
+```{r 1}
+business <- read.csv("Business_Entities_in_Colorado.csv", header = TRUE)
+```
+look at the head of the data
+```{r 2}
+head(business)
+```
+how many rows do I have
+```{r 3}
+#totBusiness <- nrow(business)
+#totBusiness 
+```
+Let's reduce the columns
+```{r 4}
+b1 <- business %>% select(
+  entityid, 
+  entityname, 
+  principaladdress1, 
+  principalcity, 
+  principalstate,
+  principalzipcode,
+  principalcountry, 
+  entitystatus, 
+  jurisdictonofformation, 
+  entityformdate
+  )
+```
+Let's see just the years of registration
+```{r 5}
+date <-  as.Date(b1$entityformdate,'%m/%d/%Y')
+year <- as.numeric(format(date,"%Y"))
+#View(year)
+```
+Let's add a year column to the reduced data set
+```{r}
+b2 <- cbind(b1, year)
+b2
+```
+Finally, let's see basic growth of registered companies in Colorado for the past 135 years
+```{r }
+hist(b2$year, breaks = 135)
+```
+
+```{r}
+b2$principalzipcode <- trimws(b2$principalzipcode, which = c("left"))
+```
+
+```{r}
+b2$principalzipcode <- substr(b2$principalzipcode, start = 1, stop = 5)
+```
+
+```{r}
+b2
+```
+
+```{r}
+b2$principalzipcode <- as.numeric(b2$principalzipcode)
+```
+
+
+```{r}
+hist(b2$principalzipcode)
+```
+
+
+
+What are the home states for registered businesses
+```{r}
+FreqCO <- unique(b2$principalstate)
+FreqCO
+
+```
+Homestates that have registered businesses in Colorado and how many businesses
+```{r}
+test1 <- summary(b2$principalstate)
+test1
+```
+Same data but in a table
+```{r}
+homeStates = table(b2$principalstate)
+homeStates
+```
+
+
+```{r}
+other <- totBusiness - 1672148
+portions <- c(other, 1672148)
+states <-c("other", "Colorado")
+pie(portions,labels = states, main="Registered Businesses Home State")
+```
+
+```{r}
+topHomeStates <-summary(fct_infreq(b2$principalstate))
+topHomeStates
+```
+
+```{r}
+class(homeStates)
+```
+
+```{r}
+tester <- barplot(topHomeStates, main="Registered Business Home State", xlab = "States")
+tester
+```
+
+```{r}
+
+b3 <- b2 %>% separate(entityname, c("company", "dissolved"), sep = "Dissolved")
+```
+
+```{r}
+b3
+```
+
+```{r}
+b3$dissolved <- trimws(b3$dissolved, which = c("left"))
+```
+
+
+```{r}
+testb3 <- b3 %>% separate(dissolved, c("month", "day", "yrdslv"), sep = " ")
+datedslv <-  as.Date(testb3$yrdslv,'%Y')
+yeardslv <- as.numeric(format(datedslv,"%Y"))
+```
+
+```{r}
+b4 <- cbind(b3, yeardslv)
+b4
+```
+
+```{r}
+hist(b4$yeardslv, breaks = 135)
+```
+
+
+```{r}
+sum(is.na(testb3$yrdslv))
+```
+
+
+```{r}
+linearMod <- lm(dist ~ speed, data=b3)
+```
+
+
+```{r}
+#disornot <- grepl('Dissolved', b3)
+#View(disornot)
+```
+
+```{r}
+b2 <- cbind(b2, disornot)
+head(b2)
+```
+
+
+
+```{r}
+b4 %>%
+  separate(entityname, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
+```
+```{r}
+b5 <- b4 %>%
+  separate(entityname, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
+```
+```{r}
+b5
+```
+
+```{r}
+year
+yeardissolved <- as.numeric(gsub("[^0-9.-]", "", b5$disyear))
+```
+
+```{r}
+yeardissolved <- trimws(yeardissolved, which = c("both"))
+yeardissolved
+```
+
+```{r}
+typeof(yeardissolved)
+```
+
+```{r}
+sapply(b4, class)
+```
+
+```{r}
+b6 <- cbind(b4, yeardissolved)
+head(b6)
+```
+
+```{r}
+b6$yeardissolved[is.na(b6$yeardissolved)] <- 1880
+head(b6)
+```
+
+```{r}
+str(b6)
+```
+
+
+
+
+find population in zip code
+home price
+multi linear
+stock market data snp 500
+
