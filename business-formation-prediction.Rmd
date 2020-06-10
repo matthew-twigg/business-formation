@@ -1,14 +1,14 @@
 ---
 title: "Untitled"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 author: "Matt Twigg"
 date: "June 10, 2020"
 output: html_document
 ---
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -113,6 +113,7 @@ homeStates
 
 
 ```{r}
+totBusiness <- nrow(business)
 other <- totBusiness - 1672148
 portions <- c(other, 1672148)
 states <-c("other", "Colorado")
@@ -168,14 +169,13 @@ sum(is.na(testb3$yrdslv))
 ```
 
 
-```{r}
-linearMod <- lm(dist ~ speed, data=b3)
-```
+
 
 
 ```{r}
-#disornot <- grepl('Dissolved', b3)
+disornot <- grepl('Dissolved', b2$entityname)
 #View(disornot)
+disornot
 ```
 
 ```{r}
@@ -187,19 +187,21 @@ head(b2)
 
 ```{r}
 b4 %>%
-  separate(entityname, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
+  separate(company, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
 ```
+
 ```{r}
 b5 <- b4 %>%
-  separate(entityname, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
+  separate(company, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
 ```
+
 ```{r}
 b5
 ```
 
 ```{r}
-year
-yeardissolved <- as.numeric(gsub("[^0-9.-]", "", b5$disyear))
+yeardslv
+yeardissolved <- as.numeric(gsub("[^0-9.-]", "", b5$yeardslv))
 ```
 
 ```{r}
@@ -221,7 +223,9 @@ head(b6)
 ```
 
 ```{r}
-b6$yeardissolved[is.na(b6$yeardissolved)] <- 1880
+b6$yeardslv[is.na(b6$yeardslv)] <- 0
+
+
 head(b6)
 ```
 
