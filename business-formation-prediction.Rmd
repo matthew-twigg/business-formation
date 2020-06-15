@@ -33,7 +33,7 @@ business <- read.csv("Business_Entities_in_Colorado.csv", header = TRUE)
 ```
 look at the head of the data
 ```{r 2}
-head(business)
+#str(business)
 ```
 how many rows do I have
 ```{r 3}
@@ -43,15 +43,10 @@ how many rows do I have
 Let's reduce the columns
 ```{r 4}
 b1 <- business %>% select(
-  entityid, 
+  entityid,
   entityname, 
-  principaladdress1, 
-  principalcity, 
   principalstate,
   principalzipcode,
-  principalcountry, 
-  entitystatus, 
-  jurisdictonofformation, 
   entityformdate
   )
 ```
@@ -64,7 +59,7 @@ year <- as.numeric(format(date,"%Y"))
 Let's add a year column to the reduced data set
 ```{r}
 b2 <- cbind(b1, year)
-b2
+#b2
 ```
 Finally, let's see basic growth of registered companies in Colorado for the past 135 years
 ```{r }
@@ -179,8 +174,8 @@ disornot
 ```
 
 ```{r}
-b2 <- cbind(b2, disornot)
-head(b2)
+#b2 <- cbind(b2, disornot)
+#head(b2)
 ```
 
 
@@ -198,40 +193,189 @@ b5 <- b4 %>%
 ```{r}
 b5
 ```
+```{r}
+reducedb <- b5 %>% select(
+  entityid,
+  principalzipcode,
+  year,
+  yeardslv
+  ) 
+reducedb
+```
 
 ```{r}
-yeardslv
+onlyNAb <- reducedb[rowSums(is.na(reducedb)) > 0,]
+onlyNAb
+```
+```{r}
+subOnly <- onlyNAb[(onlyNAb$year > 2010) & (onlyNAb$year < 2020) ,]
+subOnly
+```
+
+```{r }
+hist(subOnly$year)
+```
+
+```{r}
+zips = sort(table(subOnly$principalzipcode), decreasing = TRUE)
+zips
+```
+
+```{r}
+top10Zips <- zips[1:10]
+top10Zips
+```
+
+```{r}
+class(top10Zips)
+```
+
+```{r}
+vecTopZips <- c(80202, 80111, 80302, 80206, 80112, 80134, 80205, 80211, 80525, 80210)
+class(vecTopZips)
+```
+
+```{r}
+vecMiddleZips <- c(80701, 81211, 81303, 80615, 80118, 80751, 81101, 81122, 80924, 81625)
+class(vecMiddleZips)
+```
+
+```{r}
+vecBottomZips <- c(81233, 80866, 81602, 80264, 80611, 80835, 80455, 80612, 80836, 81643)
+class(vecBottomZips)
+```
+
+```{r}
+cleanedBTop <- subOnly[subOnly$principalzipcode %in% vecTopZips,]
+
+cleanedBTop <- cbind(cleanedBTop, "high")
+cleanedBMiddle <- subOnly[subOnly$principalzipcode %in% vecMiddleZips,]
+
+cleanedBMiddle <- cbind(cleanedBMiddle, "medium")
+cleanedBBottom <- subOnly[subOnly$principalzipcode %in% vecBottomZips,]
+
+cleanedBBottom <- cbind(cleanedBBottom, "low")
+```
+
+```{r}
+cleanedBTop
+```
+
+
+
+
+```{r}
+hist(cleanedBTop$year)
+```
+
+```{r}
+cleanedBMiddle <- subOnly[subOnly$principalzipcode %in% vecMiddleZips,]
+cleanedBMiddle
+```
+
+```{r}
+hist(cleanedBMiddle$year)
+```
+
+
+```{r}
+hist(cleanedBBottom$year)
+```
+
+```{r}
+cleanedBTop <- cleanedBTop[cleanedBTop$year %in% 2019,]
+cleanedBMiddle <- cleanedBMiddle[cleanedBMiddle$year %in% 2019,]
+cleanedBBottom <- cleanedBBottom[cleanedBBottom$year %in% 2019,]
+str(cleanedBTop)
+```
+
+```{r}
+table(cleanedBTop$principalzipcode)
+```
+
+```{r}
+table(cleanedBMiddle$principalzipcode)
+```
+
+```{r}
+table(cleanedBBottom$principalzipcode)
+```
+
+```{r}
+ZipCodes <- c(80202, 80111, 80302, 80206, 80112, 80134, 80205, 80211, 80525, 80210, 80701, 81211, 81303, 80615, 80118, 80751, 81101, 81122, 80924, 81625, 80264, 80455, 80611, 80612, 80835, 80836, 80866, 81233, 81602, 81643)
+BusinessFormed <- c(1295, 1180, 1224, 2196, 1197, 1440, 1059, 1207, 2138, 1096, 125, 147, 138,  161, 186, 131, 136, 155, 157, 121, 9, 12, 15, 16, 16, 11, 9, 21, 11, 14)
+MedianHome <- c(567473, 684385, 933262, 733365, 495751, 525159, 518599, 601857, 430693, 680462, 219751, 377517, 426665, 384931, 686706, 179585, 179585, 333529, 179585, 196485, 0, 460987, 410812, 510036, 194934, 194934, 0, 347307, 347307, 346233 )
+Pop <- c(4364, 26015, 29795, 20372, 21612, 30507, 29726, 37620, 42522, 32119, 15312, 6508, 8432, 5522, 4096, 16486, 14100, 5503, 15923, 12180, 0, 457, 585, 195, 795, 1207, 111, 906, 0, 718)
+Formation <- c("high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low" )
+BusinessDF <- data.frame(ZipCodes, BusinessFormed, MedianHome, Pop, Formation)
+str(BusinessDF)
+```
+
+```{r}
+Xaxis <- BusinessDF[, "ZipCodes"]
+Yaxis <- BusinessDF[, "MedianHome"]
+FormHomecorr <- cor(Yaxis, Xaxis, method = "pearson")
+FormHomecorr
+```
+
+
+```{r}
+Xaxis2 <- BusinessDF[, "Pop"]
+Yaxis2 <- BusinessDF[, "BusinessFormed"]
+FormHomecorr2 <- cor(Yaxis2, Xaxis2, method = "pearson")
+FormHomecorr2
+```
+
+```{r}
+plot(Yaxis2~Xaxis2, col=Xaxis2)
+positiveModel <- lm(Yaxis2~Xaxis2)
+abline(positiveModel, col="blue")
+```
+
+
+```{r}
+prediction10000 <- predict(positiveModel, data.frame("Xaxis2" = 10000))
+prediction10000
+```
+
+
+
+
+
+
+```{r}
 yeardissolved <- as.numeric(gsub("[^0-9.-]", "", b5$yeardslv))
 ```
 
 ```{r}
 yeardissolved <- trimws(yeardissolved, which = c("both"))
-yeardissolved
 ```
 
 ```{r}
-typeof(yeardissolved)
+#typeof(yeardissolved)
 ```
 
 ```{r}
-sapply(b4, class)
+#sapply(b4, class)
 ```
 
 ```{r}
 b6 <- cbind(b4, yeardissolved)
-head(b6)
+#head(b6)
 ```
 
 ```{r}
 b6$yeardslv[is.na(b6$yeardslv)] <- 0
 
 
-head(b6)
+#head(b6)
 ```
 
 ```{r}
-str(b6)
+#str(b6)
 ```
+
+
 
 
 
