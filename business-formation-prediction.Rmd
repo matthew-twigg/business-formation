@@ -208,7 +208,7 @@ onlyNAb <- reducedb[rowSums(is.na(reducedb)) > 0,]
 onlyNAb
 ```
 ```{r}
-subOnly <- onlyNAb[(onlyNAb$year > 2010) & (onlyNAb$year < 2020) ,]
+subOnly <- onlyNAb[(onlyNAb$year > 2009) & (onlyNAb$year < 2020) ,]
 subOnly
 ```
 
@@ -312,8 +312,8 @@ str(BusinessDF)
 ```
 
 ```{r}
-Xaxis <- BusinessDF[, "ZipCodes"]
-Yaxis <- BusinessDF[, "MedianHome"]
+Xaxis <- BusinessDF[, "MedianHome"]
+Yaxis <- BusinessDF[, "BusinessFormed"]
 FormHomecorr <- cor(Yaxis, Xaxis, method = "pearson")
 FormHomecorr
 ```
@@ -332,11 +332,34 @@ positiveModel <- lm(Yaxis2~Xaxis2)
 abline(positiveModel, col="blue")
 ```
 
+```{r}
+summary(lm(Yaxis2~Xaxis2))
+```
+
 
 ```{r}
 prediction10000 <- predict(positiveModel, data.frame("Xaxis2" = 10000))
 prediction10000
 ```
+
+
+```{r}
+plot(Yaxis2~Xaxis2, col=Xaxis2)
+positiveModel <- lm(Yaxis2~Xaxis2)
+abline(positiveModel, col="blue")
+```
+
+
+```{r}
+testBDF <- BusinessDF[,c(2:4)]
+head(testBDF)
+```
+
+```{r}
+clusterResult <- kmeans(testBDF, 3)
+clusterResult$size
+```
+
 
 
 
