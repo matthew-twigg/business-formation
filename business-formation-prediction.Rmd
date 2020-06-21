@@ -59,7 +59,7 @@ year <- as.numeric(format(date,"%Y"))
 Let's add a year column to the reduced data set
 ```{r}
 b2 <- cbind(b1, year)
-#b2
+b2
 ```
 Finally, let's see basic growth of registered companies in Colorado for the past 135 years
 ```{r }
@@ -231,9 +231,23 @@ class(top10Zips)
 ```
 
 ```{r}
+sub2010Only <- onlyNAb[(onlyNAb$year > 2009) & (onlyNAb$year < 2011) ,]
+only2010zips = sort(table(sub2010Only$principalzipcode), decreasing = TRUE)
+top2010Zips <- only2010zips[1:1000]
+top2010Zips
+```
+
+```{r}
+write.csv(top2010Zips, file = "zipsBusiness.csv")
+```
+
+
+```{r}
 vecTopZips <- c(80202, 80111, 80302, 80206, 80112, 80134, 80205, 80211, 80525, 80210)
 class(vecTopZips)
 ```
+
+
 
 ```{r}
 vecMiddleZips <- c(80701, 81211, 81303, 80615, 80118, 80751, 81101, 81122, 80924, 81625)
@@ -359,6 +373,21 @@ head(testBDF)
 clusterResult <- kmeans(testBDF, 3)
 clusterResult$size
 ```
+###################################### My new file
+
+```{r}
+builtDF <- read.csv("zipPopChildPrice.csv", header = TRUE)
+```
+
+```{r}
+growth <- c("high"[1:10], "medium"[31:60], "low"[61:90])
+growth
+```
+
+
+
+
+
 
 
 
