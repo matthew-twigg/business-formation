@@ -357,12 +357,6 @@ prediction10000
 ```
 
 
-```{r}
-plot(Yaxis2~Xaxis2, col=Xaxis2)
-positiveModel <- lm(Yaxis2~Xaxis2)
-abline(positiveModel, col="blue")
-```
-
 
 ```{r}
 testBDF <- BusinessDF[,c(2:4)]
@@ -377,12 +371,115 @@ clusterResult$size
 
 ```{r}
 builtDF <- read.csv("zipPopChildPrice.csv", header = TRUE)
+growth <- rep(c("high", "medium", "low"), each = 30)
+finalDF <- cbind(builtDF, growth)
+finalDF
+```
+
+
+```{r}
+Xaxis <- builtDF[, "homeprice"]
+Yaxis <- builtDF[, "busFormed"]
+FormHomecorr <- cor(Yaxis, Xaxis, method = "pearson")
+FormHomecorr
 ```
 
 ```{r}
-growth <- c("high"[1:10], "medium"[31:60], "low"[61:90])
-growth
+Xaxis2 <- builtDF[, "population"]
+Yaxis2 <- builtDF[, "busFormed"]
+FormHomecorr2 <- cor(Yaxis2, Xaxis2, method = "pearson")
+FormHomecorr2
 ```
+
+```{r}
+plot(Yaxis2~Xaxis2, col=Xaxis2)
+positiveModel <- lm(Yaxis2~Xaxis2)
+abline(positiveModel, col="blue")
+```
+
+```{r}
+summary(lm(Yaxis2~Xaxis2))
+```
+
+```{r}
+prediction10000 <- predict(positiveModel, data.frame("Xaxis2" = 10000))
+prediction10000
+```
+
+```{r}
+testBDF <- finalDF[,c(2:5)]
+growthGroup <- finalDF[, "growth"]
+testBDF
+```
+
+```{r}
+head(growthGroup)
+```
+
+
+
+```{r}
+result <- kmeans(testBDF, 3, n = 20)
+result$size
+```
+
+```{r}
+result$cluster
+```
+
+
+```{r}
+table(result$cluster, growthGroup)
+```
+
+
+
+
+```{r}
+set.seed(51)
+finalDF2 <- finalDF[,c(2:6)]
+finalDF2
+
+dt = sort(sample(nrow(finalDF2), nrow(finalDF2)*.7))
+train<-finalDF2[dt,]
+test<-finalDF2[-dt,]
+#view(train)
+train
+```
+```{r}
+str(train)
+```
+
+```{r}
+normalizedNums <- function(x){
+  (x-min(x))/(max(x)-min(x))
+}
+normTrain <- as.data.frame(lapply(train[1:4], normalizedNums))
+normTrain
+```
+
+
+
+```{r}
+model1 <- lm(busFormed ~ ., normTrain)
+```
+
+
+```{r}
+normalizedNums <- function(x){
+  (x-min(x))/(max(x)-min(x))
+}
+normTest <- as.data.frame(lapply(test[1:4], normalizedNums))
+normTest
+```
+
+```{r}
+predicted1 <- predict(model1, normTest)
+predicted1
+```
+
+
+
 
 
 
