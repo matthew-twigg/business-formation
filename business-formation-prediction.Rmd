@@ -13,34 +13,39 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-#Introduction#
-This practicum intends to look at business growth and predicting that growth
-
-#Exploration#
-
-
+## Libraries used
 ```{r libraries}
 library(ggplot2)
 library(tidyverse)
 library(dplyr)
-library(forcats)
-
+library("caret")
+library("e1071")
+library(Metrics)
 ```
-load business
+
+#Introduction#
+This practicum looks at business growth in Colodo and predicting that growth
+
+#Exploration#
+The first step is to load the data. This data can be downloaded from https://data.colorado.gov/Business/Business-Entities-in-Colorado/4ykn-tg5h under the "Export" button and then the "CSV" option.
 ```{r 1}
 business <- read.csv("Business_Entities_in_Colorado.csv", header = TRUE)
 ```
+look at the structure of the data
+```{r}
+str(business)
+```
+
 look at the head of the data
 ```{r 2}
-#str(business)
+head(business)
 ```
 how many rows do I have
 ```{r 3}
-#totBusiness <- nrow(business)
-#totBusiness 
+totBusiness <- nrow(business)
+totBusiness 
 ```
-Let's reduce the columns
+Let's reduce the columns to the columns I will need
 ```{r 4}
 b1 <- business %>% select(
   entityid,
@@ -50,127 +55,94 @@ b1 <- business %>% select(
   entityformdate
   )
 ```
-Let's see just the years of registration
+Let's see the years of registration, the registrations in each of those years, and convert the year to a number at the same time
 ```{r 5}
 date <-  as.Date(b1$entityformdate,'%m/%d/%Y')
 year <- as.numeric(format(date,"%Y"))
-#View(year)
+table(year)
 ```
 Let's add a year column to the reduced data set
 ```{r}
 b2 <- cbind(b1, year)
-b2
+str(b2)
 ```
 Finally, let's see basic growth of registered companies in Colorado for the past 135 years
 ```{r }
-hist(b2$year, breaks = 135)
+hist(b2$year, breaks = 156)
 ```
-
+I'm interested in analyzing the data by zip code but when I viewed the data I found white space and some trailing four digit delivery route data. I will trim out the leading white space
 ```{r}
 b2$principalzipcode <- trimws(b2$principalzipcode, which = c("left"))
 ```
-
+Then I take only the first 5 digits representing the zip code alone
 ```{r}
 b2$principalzipcode <- substr(b2$principalzipcode, start = 1, stop = 5)
-```
+``` 
 
 ```{r}
-b2
+plot(table(b2$principalzipcode))
 ```
-
+Now I am ready to convert the zip code to a numeric value. Where there was nothing in the zip code field, it is coerced into NA values.
 ```{r}
 b2$principalzipcode <- as.numeric(b2$principalzipcode)
 ```
-
-
-```{r}
-hist(b2$principalzipcode)
-```
-
-
-
-What are the home states for registered businesses
-```{r}
-FreqCO <- unique(b2$principalstate)
-FreqCO
-
-```
 Homestates that have registered businesses in Colorado and how many businesses
 ```{r}
-test1 <- summary(b2$principalstate)
-test1
-```
-Same data but in a table
-```{r}
-homeStates = table(b2$principalstate)
+homeStates <- table(b2$principalstate)
 homeStates
 ```
-
-
+What proportion of registered businesses are from outside Colorado?
 ```{r}
-totBusiness <- nrow(business)
-other <- totBusiness - 1672148
-portions <- c(other, 1672148)
+other <- totBusiness - homeStates["CO"]
+portions <- c(other, homeStates["CO"])
 states <-c("other", "Colorado")
 pie(portions,labels = states, main="Registered Businesses Home State")
 ```
-
+let's look at the state of the registered businesses from most registered to least. Looks like homestate is missing on a lot of the registrations.
 ```{r}
 topHomeStates <-summary(fct_infreq(b2$principalstate))
 topHomeStates
 ```
-
+Colorado registrations dwarf all the others.
 ```{r}
-class(homeStates)
+barplot(topHomeStates, main="Registered Business Home State", xlab = "States")
 ```
-
+I want to eliminate the count of companies that have dissolved. First I need to split off a column specifying that the company was dissolved.
 ```{r}
-tester <- barplot(topHomeStates, main="Registered Business Home State", xlab = "States")
-tester
-```
-
-```{r}
-
 b3 <- b2 %>% separate(entityname, c("company", "dissolved"), sep = "Dissolved")
+str(b3)
 ```
-
-```{r}
-b3
-```
-
+As before, I trim out leading white space in the "dissolved" column.
 ```{r}
 b3$dissolved <- trimws(b3$dissolved, which = c("left"))
 ```
-
-
+I need only the year dissoved. To get the year, I need to further separate out the day, month, and year and convert year to a numeric type
 ```{r}
-testb3 <- b3 %>% separate(dissolved, c("month", "day", "yrdslv"), sep = " ")
-datedslv <-  as.Date(testb3$yrdslv,'%Y')
+tempb3 <- b3 %>% separate(dissolved, c("month", "day", "yrdslv"), sep = " ")
+datedslv <-  as.Date(tempb3$yrdslv,'%Y')
 yeardslv <- as.numeric(format(datedslv,"%Y"))
 ```
+How many companies still exist? I can find this by summing the NAs in the yrdslv column. Looks like there are still a million and a half plus that are not dissolved.
+```{r}
+sum(is.na(tempb3$yrdslv))
+```
 
+I add the column into my dataframe
 ```{r}
 b4 <- cbind(b3, yeardslv)
 b4
 ```
 
-```{r}
-hist(b4$yeardslv, breaks = 135)
-```
-
-
-```{r}
-sum(is.na(testb3$yrdslv))
-```
 
 
 
-
+revisit if needed
 
 ```{r}
-disornot <- grepl('Dissolved', b2$entityname)
+
+#disornot <- grepl('Dissolved', b2$entityname)
 #View(disornot)
-disornot
+#disornot
 ```
 
 ```{r}
@@ -181,20 +153,18 @@ disornot
 
 
 ```{r}
-b4 %>%
-  separate(company, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
+#b4 %>%
+#  separate(company, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
 ```
 
 ```{r}
-b5 <- b4 %>%
-  separate(company, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
+#b5 <- b4 %>%
+#  separate(company, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
 ```
+Now we can start cleaning and reduce the number of columns in the dataframe 
 
 ```{r}
-b5
-```
-```{r}
-reducedb <- b5 %>% select(
+reducedb <- b4 %>% select(
   entityid,
   principalzipcode,
   year,
@@ -202,180 +172,47 @@ reducedb <- b5 %>% select(
   ) 
 reducedb
 ```
-
+Now, using the NA values in yeardslv, I can keep only the companies that have not been disolved
 ```{r}
 onlyNAb <- reducedb[rowSums(is.na(reducedb)) > 0,]
 onlyNAb
 ```
+I can further reduce the rows that fall from 2010 through 2019 to get the active companies registered in those years. I still have over 800 thousand companies.
 ```{r}
 subOnly <- onlyNAb[(onlyNAb$year > 2009) & (onlyNAb$year < 2020) ,]
 subOnly
 ```
-
+A table shows registrations of companies in each of those years
+```{r}
+table(subOnly$year)
+```
+A histogram of the same data makes it easer to visualize the growth of registrations
 ```{r }
 hist(subOnly$year)
 ```
-
+But I still need to separate things out by zip codes
 ```{r}
 zips = sort(table(subOnly$principalzipcode), decreasing = TRUE)
 zips
 ```
 
-```{r}
-top10Zips <- zips[1:10]
-top10Zips
-```
-
-```{r}
-class(top10Zips)
-```
 
 ```{r}
 sub2010Only <- onlyNAb[(onlyNAb$year > 2009) & (onlyNAb$year < 2011) ,]
 only2010zips = sort(table(sub2010Only$principalzipcode), decreasing = TRUE)
 top2010Zips <- only2010zips[1:1000]
-top2010Zips
+#top2010Zips
 ```
 
 ```{r}
 write.csv(top2010Zips, file = "zipsBusiness.csv")
 ```
 
-
-```{r}
-vecTopZips <- c(80202, 80111, 80302, 80206, 80112, 80134, 80205, 80211, 80525, 80210)
-class(vecTopZips)
-```
-
-
-
-```{r}
-vecMiddleZips <- c(80701, 81211, 81303, 80615, 80118, 80751, 81101, 81122, 80924, 81625)
-class(vecMiddleZips)
-```
-
-```{r}
-vecBottomZips <- c(81233, 80866, 81602, 80264, 80611, 80835, 80455, 80612, 80836, 81643)
-class(vecBottomZips)
-```
-
-```{r}
-cleanedBTop <- subOnly[subOnly$principalzipcode %in% vecTopZips,]
-
-cleanedBTop <- cbind(cleanedBTop, "high")
-cleanedBMiddle <- subOnly[subOnly$principalzipcode %in% vecMiddleZips,]
-
-cleanedBMiddle <- cbind(cleanedBMiddle, "medium")
-cleanedBBottom <- subOnly[subOnly$principalzipcode %in% vecBottomZips,]
-
-cleanedBBottom <- cbind(cleanedBBottom, "low")
-```
-
-```{r}
-cleanedBTop
-```
-
-
-
-
-```{r}
-hist(cleanedBTop$year)
-```
-
-```{r}
-cleanedBMiddle <- subOnly[subOnly$principalzipcode %in% vecMiddleZips,]
-cleanedBMiddle
-```
-
-```{r}
-hist(cleanedBMiddle$year)
-```
-
-
-```{r}
-hist(cleanedBBottom$year)
-```
-
-```{r}
-cleanedBTop <- cleanedBTop[cleanedBTop$year %in% 2019,]
-cleanedBMiddle <- cleanedBMiddle[cleanedBMiddle$year %in% 2019,]
-cleanedBBottom <- cleanedBBottom[cleanedBBottom$year %in% 2019,]
-str(cleanedBTop)
-```
-
-```{r}
-table(cleanedBTop$principalzipcode)
-```
-
-```{r}
-table(cleanedBMiddle$principalzipcode)
-```
-
-```{r}
-table(cleanedBBottom$principalzipcode)
-```
-
-```{r}
-ZipCodes <- c(80202, 80111, 80302, 80206, 80112, 80134, 80205, 80211, 80525, 80210, 80701, 81211, 81303, 80615, 80118, 80751, 81101, 81122, 80924, 81625, 80264, 80455, 80611, 80612, 80835, 80836, 80866, 81233, 81602, 81643)
-BusinessFormed <- c(1295, 1180, 1224, 2196, 1197, 1440, 1059, 1207, 2138, 1096, 125, 147, 138,  161, 186, 131, 136, 155, 157, 121, 9, 12, 15, 16, 16, 11, 9, 21, 11, 14)
-MedianHome <- c(567473, 684385, 933262, 733365, 495751, 525159, 518599, 601857, 430693, 680462, 219751, 377517, 426665, 384931, 686706, 179585, 179585, 333529, 179585, 196485, 0, 460987, 410812, 510036, 194934, 194934, 0, 347307, 347307, 346233 )
-Pop <- c(4364, 26015, 29795, 20372, 21612, 30507, 29726, 37620, 42522, 32119, 15312, 6508, 8432, 5522, 4096, 16486, 14100, 5503, 15923, 12180, 0, 457, 585, 195, 795, 1207, 111, 906, 0, 718)
-Formation <- c("high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low" )
-BusinessDF <- data.frame(ZipCodes, BusinessFormed, MedianHome, Pop, Formation)
-str(BusinessDF)
-```
-
-```{r}
-Xaxis <- BusinessDF[, "MedianHome"]
-Yaxis <- BusinessDF[, "BusinessFormed"]
-FormHomecorr <- cor(Yaxis, Xaxis, method = "pearson")
-FormHomecorr
-```
-
-
-```{r}
-Xaxis2 <- BusinessDF[, "Pop"]
-Yaxis2 <- BusinessDF[, "BusinessFormed"]
-FormHomecorr2 <- cor(Yaxis2, Xaxis2, method = "pearson")
-FormHomecorr2
-```
-
-```{r}
-plot(Yaxis2~Xaxis2, col=Xaxis2)
-positiveModel <- lm(Yaxis2~Xaxis2)
-abline(positiveModel, col="blue")
-```
-
-```{r}
-summary(lm(Yaxis2~Xaxis2))
-```
-
-
-```{r}
-prediction10000 <- predict(positiveModel, data.frame("Xaxis2" = 10000))
-prediction10000
-```
-
-
-
-```{r}
-testBDF <- BusinessDF[,c(2:4)]
-head(testBDF)
-```
-
-```{r}
-clusterResult <- kmeans(testBDF, 3)
-clusterResult$size
-```
-###################################### My new file
-
+##The cleaned and prepped data set
 ```{r}
 builtDF <- read.csv("zipPopChildPrice.csv", header = TRUE)
-growth <- rep(c("high", "medium", "low"), each = 30)
-finalDF <- cbind(builtDF, growth)
-finalDF
 ```
-
+##Correlations
 
 ```{r}
 Xaxis <- builtDF[, "homeprice"]
@@ -385,12 +222,20 @@ FormHomecorr
 ```
 
 ```{r}
-Xaxis2 <- builtDF[, "population"]
+Xaxis2 <- builtDF[, "children"]
 Yaxis2 <- builtDF[, "busFormed"]
 FormHomecorr2 <- cor(Yaxis2, Xaxis2, method = "pearson")
 FormHomecorr2
 ```
 
+
+```{r}
+Xaxis2 <- builtDF[, "population"]
+Yaxis2 <- builtDF[, "busFormed"]
+FormHomecorr2 <- cor(Yaxis2, Xaxis2, method = "pearson")
+FormHomecorr2
+```
+##Linear regression using population
 ```{r}
 plot(Yaxis2~Xaxis2, col=Xaxis2)
 positiveModel <- lm(Yaxis2~Xaxis2)
@@ -400,137 +245,138 @@ abline(positiveModel, col="blue")
 ```{r}
 summary(lm(Yaxis2~Xaxis2))
 ```
-
+## Prediction with just population
 ```{r}
 prediction10000 <- predict(positiveModel, data.frame("Xaxis2" = 10000))
 prediction10000
 ```
+## K-means clustering
+
+
+
 
 ```{r}
-testBDF <- finalDF[,c(2:5)]
-growthGroup <- finalDF[, "growth"]
-testBDF
+#testBDF <- finalDF[,c(2:5)]
+#growthGroup <- finalDF[, "growth"]
+#testBDF
 ```
 
-```{r}
-head(growthGroup)
-```
-
 
 
 ```{r}
-result <- kmeans(testBDF, 3, n = 20)
+result <- kmeans(builtDF, 3)
 result$size
 ```
 
 ```{r}
-result$cluster
+table(result$cluster)
 ```
 
 
 ```{r}
-table(result$cluster, growthGroup)
+growth <- rep(c("high", "medium", "low"), each = 30)
+finalDF <- cbind(builtDF, growth)
+finalDF
 ```
 
-
-
-
 ```{r}
-set.seed(51)
+table(result$cluster, growth)
+```
+## Train/test split
+```{r}
+#set.seed(7)
 finalDF2 <- finalDF[,c(2:6)]
-finalDF2
-
-dt = sort(sample(nrow(finalDF2), nrow(finalDF2)*.7))
+dt <- createDataPartition(growth, times = 1, p = 0.7, list = FALSE)
+#dt = sort(sample(nrow(finalDF2), replace = TRUE, nrow(finalDF2)*.7))
 train<-finalDF2[dt,]
 test<-finalDF2[-dt,]
-#view(train)
-train
-```
-```{r}
 str(train)
 ```
 
 ```{r}
-normalizedNums <- function(x){
-  (x-min(x))/(max(x)-min(x))
-}
-normTrain <- as.data.frame(lapply(train[1:4], normalizedNums))
-normTrain
+table(train$growth)
 ```
 
 
-
+## Linear model
 ```{r}
-model1 <- lm(busFormed ~ ., normTrain)
-```
-
-
-```{r}
-normalizedNums <- function(x){
-  (x-min(x))/(max(x)-min(x))
-}
-normTest <- as.data.frame(lapply(test[1:4], normalizedNums))
-normTest
-```
-
-```{r}
-predicted1 <- predict(model1, normTest)
+model1 <- lm(busFormed ~ population + children + homeprice, train)
+predicted1 <- predict(model1, test)
 predicted1
 ```
+##Fit of the linear model with the test data
+```{r}
+fit <- lm(busFormed ~ population + children + homeprice, data = test)
+summary(fit)
+```
 
 
 
+## Running the Support Vector Machine algorithm to classify
+```{r}
+svmModel <- svm(growth ~., data = train, kernel = "linear")
+svmModel
+```
+```{r}
+outcome <- predict(svmModel, train)
+table(Predicted = outcome, Tagged = train$growth)
+```
 
 
+```{r}
+testOutcome <- predict(svmModel, test)
+table(Predicted = testOutcome, Tagged = test$growth)
+```
+
+```{r}
+plot(svmModel, data = test, busFormed ~ population)
+```
+
+##SVM as regression
+## Train/test split
+```{r}
+#set.seed(7)
+finalDF2 <- finalDF[,c(2:5)]
+dt <- createDataPartition(growth, times = 1, p = 0.7, list = FALSE)
+#dt = sort(sample(nrow(finalDF2), replace = TRUE, nrow(finalDF2)*.7))
+train<-finalDF2[dt,]
+test<-finalDF2[-dt,]
+str(train)
+```
 
 
+```{r}
+svmModel <- svm(busFormed ~., data = train, kernel = "linear")
+svmModel
+```
 
-
-
-
+```{r}
+model2 <- svm(busFormed~population, train)
+predictedY <- predict(model2, test)
+plot(test$population, predictedY, col = "red", pch = 4)
+#pred <- predict(svmModel, test)
+#x = 1: length(test$busFormed)
+#plot(x, test$busFormed, pch=18, col="red")
+#lines(x, pred, lwd='1', col="blue")
+```
 
 
 
 
 ```{r}
-yeardissolved <- as.numeric(gsub("[^0-9.-]", "", b5$yeardslv))
-```
 
-```{r}
-yeardissolved <- trimws(yeardissolved, which = c("both"))
-```
-
-```{r}
-#typeof(yeardissolved)
-```
-
-```{r}
-#sapply(b4, class)
-```
-
-```{r}
-b6 <- cbind(b4, yeardissolved)
-#head(b6)
-```
-
-```{r}
-b6$yeardslv[is.na(b6$yeardslv)] <- 0
-
-
-#head(b6)
-```
-
-```{r}
-#str(b6)
+#mse <- mse(test$busFormed, pred)
+#mae = MAE(test$busFormed, pred)
+#rmse = RMSE(test$busFormed, pred)
+#r2 = R2(test$busFormed, pred, form = "traditional")
+ 
+#cat(" MAE:", mae, "\n", "MSE:", mse, "\n", 
+#     "RMSE:", rmse, "\n", "R-squared:", r2)
 ```
 
 
 
 
-
-
-find population in zip code
-home price
-multi linear
-stock market data snp 500
+Fix SVM - take out growth factor
+do cluster analysis
 
