@@ -1,32 +1,46 @@
 ---
-title: "Untitled"
+title: "Regis University, Master of Science in Data Science, Practicum I - Business Formation Prediction"
 knit: (function(input_file, encoding) {
   out_dir <- 'docs';
   rmarkdown::render(input_file,
  encoding=encoding,
  output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 author: "Matt Twigg"
-date: "June 10, 2020"
+date: "June 28, 2020"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-## Libraries used
+
+
+#Introduction  
+While there are many factors that lead to wealth in a state, certainly business formation is one of the main ones. The state of Colorado has provided registration records for businesses formed in Colorado since 1864 (even before it was a state). If business formation can be predicted it would benefit the stability of Colorado. Colorado's less fortunate neighbors like South Dakota and Wyoming could also benefit from predicting business formation. By understanding the variables that predict business formation states can concentrate resources on those variables.
+
+
+#Methods  
+This practicum looks at business formation growth in Colorado and predicting that growth using three variables. The three variables are population, children under 18 living with their parents, and the Zillow Home Value Index. Each of these variables was collected for specific zip codes in Colorado. The business formation numbers and the zip codes they were registered in are from the comma separated value file provided at the https://data.colorado.gov/Business/Business-Entities-in-Colorado/4ykn-tg5h website. The population and children variables are provided at the https://www.zip-codes.com/zip-code/80202/zip-code-80202.asp website. The home price is provided through the https://www.zillow.com/denver-co-80202/home-values/ website. To find the values for the zip codes I was interested in I entered the zip code at the top of the pages and scrolled down to the relevant area. 
+
+I am starting off with the following null and alternative hypothesis for each of the independent variables, population, children, and home prices. 
+
+Null hypthesis: any differences are due to chance - they are not significant. 
+Alternative hypothesis: differances are not due to chance - they are significant
+
+## Libraries used  
+
 ```{r libraries}
 library(ggplot2)
 library(tidyverse)
 library(dplyr)
-library("caret")
-library("e1071")
+library(caret)
+library(e1071)
 library(Metrics)
+library(factoextra)
 ```
 
-#Introduction#
-This practicum looks at business growth in Colodo and predicting that growth
+#Exploration#  
 
-#Exploration#
 The first step is to load the data. This data can be downloaded from https://data.colorado.gov/Business/Business-Entities-in-Colorado/4ykn-tg5h under the "Export" button and then the "CSV" option.
 ```{r 1}
 business <- read.csv("Business_Entities_in_Colorado.csv", header = TRUE)
@@ -36,16 +50,16 @@ look at the structure of the data
 str(business)
 ```
 
-look at the head of the data
+look at the head of the data.
 ```{r 2}
 head(business)
 ```
-how many rows do I have
+how many rows do I have.
 ```{r 3}
 totBusiness <- nrow(business)
 totBusiness 
 ```
-Let's reduce the columns to the columns I will need
+Let's reduce the columns to the columns I will need.
 ```{r 4}
 b1 <- business %>% select(
   entityid,
@@ -55,21 +69,22 @@ b1 <- business %>% select(
   entityformdate
   )
 ```
-Let's see the years of registration, the registrations in each of those years, and convert the year to a number at the same time
+Let's see the years of registration, the registrations in each of those years, and convert the year to a number at the same time.
 ```{r 5}
 date <-  as.Date(b1$entityformdate,'%m/%d/%Y')
 year <- as.numeric(format(date,"%Y"))
 table(year)
 ```
-Let's add a year column to the reduced data set
+Let's add a year column to the reduced data set.
 ```{r}
 b2 <- cbind(b1, year)
 str(b2)
 ```
-Finally, let's see basic growth of registered companies in Colorado for the past 135 years
+Finally, let's see basic growth of registered companies in Colorado for the past 156 years
 ```{r }
 hist(b2$year, breaks = 156)
 ```
+  
 I'm interested in analyzing the data by zip code but when I viewed the data I found white space and some trailing four digit delivery route data. I will trim out the leading white space
 ```{r}
 b2$principalzipcode <- trimws(b2$principalzipcode, which = c("left"))
@@ -78,15 +93,16 @@ Then I take only the first 5 digits representing the zip code alone
 ```{r}
 b2$principalzipcode <- substr(b2$principalzipcode, start = 1, stop = 5)
 ``` 
-
+I already have a strong suspicion that most of the zip codes fall into the 80*** and 81*** codes. Plotting will give me a quick visual.
 ```{r}
 plot(table(b2$principalzipcode))
 ```
+  
 Now I am ready to convert the zip code to a numeric value. Where there was nothing in the zip code field, it is coerced into NA values.
 ```{r}
 b2$principalzipcode <- as.numeric(b2$principalzipcode)
 ```
-Homestates that have registered businesses in Colorado and how many businesses
+Homestates that have registered businesses in Colorado and how many businesses.
 ```{r}
 homeStates <- table(b2$principalstate)
 homeStates
@@ -98,15 +114,17 @@ portions <- c(other, homeStates["CO"])
 states <-c("other", "Colorado")
 pie(portions,labels = states, main="Registered Businesses Home State")
 ```
+  
 let's look at the state of the registered businesses from most registered to least. Looks like homestate is missing on a lot of the registrations.
 ```{r}
 topHomeStates <-summary(fct_infreq(b2$principalstate))
-topHomeStates
+#topHomeStates
 ```
 Colorado registrations dwarf all the others.
 ```{r}
 barplot(topHomeStates, main="Registered Business Home State", xlab = "States")
 ```
+  
 I want to eliminate the count of companies that have dissolved. First I need to split off a column specifying that the company was dissolved.
 ```{r}
 b3 <- b2 %>% separate(entityname, c("company", "dissolved"), sep = "Dissolved")
@@ -133,34 +151,6 @@ b4 <- cbind(b3, yeardslv)
 b4
 ```
 
-
-
-
-revisit if needed
-
-```{r}
-
-#disornot <- grepl('Dissolved', b2$entityname)
-#View(disornot)
-#disornot
-```
-
-```{r}
-#b2 <- cbind(b2, disornot)
-#head(b2)
-```
-
-
-
-```{r}
-#b4 %>%
-#  separate(company, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
-```
-
-```{r}
-#b5 <- b4 %>%
-#  separate(company, c("companyname", "disyear"), sep="\\s+(?=\\S*$)")
-```
 Now we can start cleaning and reduce the number of columns in the dataframe 
 
 ```{r}
@@ -182,7 +172,7 @@ I can further reduce the rows that fall from 2010 through 2019 to get the active
 subOnly <- onlyNAb[(onlyNAb$year > 2009) & (onlyNAb$year < 2020) ,]
 subOnly
 ```
-A table shows registrations of companies in each of those years
+A table shows registrations of companies in each of those years.
 ```{r}
 table(subOnly$year)
 ```
@@ -190,25 +180,27 @@ A histogram of the same data makes it easer to visualize the growth of registrat
 ```{r }
 hist(subOnly$year)
 ```
+  
 But I still need to separate things out by zip codes
 ```{r}
 zips = sort(table(subOnly$principalzipcode), decreasing = TRUE)
 zips
 ```
-
-
+  
+Now I take only the top 1000 zip code data.
 ```{r}
 sub2010Only <- onlyNAb[(onlyNAb$year > 2009) & (onlyNAb$year < 2011) ,]
 only2010zips = sort(table(sub2010Only$principalzipcode), decreasing = TRUE)
 top2010Zips <- only2010zips[1:1000]
-#top2010Zips
+top2010Zips
 ```
-
+And I write the file out for manual web scraping.
 ```{r}
 write.csv(top2010Zips, file = "zipsBusiness.csv")
 ```
 
 ##The cleaned and prepped data set
+I read in the newly built file.
 ```{r}
 builtDF <- read.csv("zipPopChildPrice.csv", header = TRUE)
 ```
@@ -217,79 +209,92 @@ builtDF <- read.csv("zipPopChildPrice.csv", header = TRUE)
 ```{r}
 Xaxis <- builtDF[, "homeprice"]
 Yaxis <- builtDF[, "busFormed"]
-FormHomecorr <- cor(Yaxis, Xaxis, method = "pearson")
+FormHomecorr <- cor(Yaxis, Xaxis)
 FormHomecorr
 ```
 
 ```{r}
 Xaxis2 <- builtDF[, "children"]
 Yaxis2 <- builtDF[, "busFormed"]
-FormHomecorr2 <- cor(Yaxis2, Xaxis2, method = "pearson")
-FormHomecorr2
+FormChildcorr <- cor(Yaxis2, Xaxis2)
+FormChildcorr
 ```
 
 
 ```{r}
 Xaxis2 <- builtDF[, "population"]
 Yaxis2 <- builtDF[, "busFormed"]
-FormHomecorr2 <- cor(Yaxis2, Xaxis2, method = "pearson")
-FormHomecorr2
+FormPopcorr <- cor(Yaxis2, Xaxis2)
+FormPopcorr
 ```
 ##Linear regression using population
+I choose linear regression just using the population variable because it has the highest correlation.
 ```{r}
-plot(Yaxis2~Xaxis2, col=Xaxis2)
 positiveModel <- lm(Yaxis2~Xaxis2)
-abline(positiveModel, col="blue")
-```
-
-```{r}
 summary(lm(Yaxis2~Xaxis2))
 ```
-## Prediction with just population
+
+Here is a plot of the data.
+```{r}
+plot(Yaxis2~Xaxis2, col=Xaxis2)
+abline(positiveModel, col="blue")
+```
+  
+Looking at the normal probability plot of the residuals suggests that the model is verging on inadequate.
+```{r}
+qqnorm(resid(positiveModel))
+qqline(resid(positiveModel))
+```
+
+If the model were adequate we could just put in a number for the x axis and the correct predicted number of formed businesses would pop out.
 ```{r}
 prediction10000 <- predict(positiveModel, data.frame("Xaxis2" = 10000))
 prediction10000
 ```
-## K-means clustering
 
-
-
-
+## Kmeans
 ```{r}
-#testBDF <- finalDF[,c(2:5)]
-#growthGroup <- finalDF[, "growth"]
-#testBDF
+head(builtDF)
 ```
-
-
-
+  
+Remove zip codes for new dataframe and then scale the new dataframe.
 ```{r}
-result <- kmeans(builtDF, 3)
+stringZipDF <- builtDF
+stringZipDF$zipcode <- as.character(stringZipDF$zipcode)
+rownames(stringZipDF) <- stringZipDF$zipcode
+stringZipDF <- scale(stringZipDF[2:5])
+head(stringZipDF)
+```
+I want to find the optimum number of cluster, I’m hoping it will be 3 to match the three different orders of magnitude of business registrations.
+```{r}
+fviz_nbclust(stringZipDF, kmeans, method = "wss") + labs(subtitle = "Elbow plot")
+```
+Well, it is not three. Let me see what happens with two clusters.
+```{r}
+result <- kmeans(stringZipDF, 2)
 result$size
 ```
-
+Wow! That looks like it clusters along magnitude order lines. I’ll plot the clusters with the zip code labels.
 ```{r}
-table(result$cluster)
+fviz_cluster(result, data = stringZipDF)
 ```
+  
+checking the zip codes, I find that cluster 1 is made up of the highest order of magntitude business registrations.
 
 
+
+## Train/test split
 ```{r}
 growth <- rep(c("high", "medium", "low"), each = 30)
 finalDF <- cbind(builtDF, growth)
-finalDF
 ```
 
 ```{r}
-table(result$cluster, growth)
-```
-## Train/test split
-```{r}
-#set.seed(7)
+set.seed(123)
 finalDF2 <- finalDF[,c(2:6)]
-dt <- createDataPartition(growth, times = 1, p = 0.7, list = FALSE)
-#dt = sort(sample(nrow(finalDF2), replace = TRUE, nrow(finalDF2)*.7))
-train<-finalDF2[dt,]
-test<-finalDF2[-dt,]
+divider <- createDataPartition(growth, times = 1, p = 0.7, list = FALSE)
+train<-finalDF2[divider,]
+test<-finalDF2[-divider,]
 str(train)
 ```
 
@@ -298,7 +303,7 @@ table(train$growth)
 ```
 
 
-## Linear model
+## Running the linear model
 ```{r}
 model1 <- lm(busFormed ~ population + children + homeprice, train)
 predicted1 <- predict(model1, test)
@@ -306,23 +311,25 @@ predicted1
 ```
 ##Fit of the linear model with the test data
 ```{r}
-fit <- lm(busFormed ~ population + children + homeprice, data = test)
-summary(fit)
+fitting <- lm(busFormed ~ population + children + homeprice, data = test)
+summary(fitting)
 ```
 
 
 
 ## Running the Support Vector Machine algorithm to classify
+I run svm for the factor growth (high, medium, low) specifying the linear kernel.
 ```{r}
 svmModel <- svm(growth ~., data = train, kernel = "linear")
 svmModel
 ```
+what does the table look like for the train data? That makes sense because I am training the svm.
 ```{r}
 outcome <- predict(svmModel, train)
 table(Predicted = outcome, Tagged = train$growth)
 ```
 
-
+Now let me see what the confusion matrix looks like. I want to see predicted vs the actual. It is not bad, that works out to a 96 percent accuracy in classifying the data points.
 ```{r}
 testOutcome <- predict(svmModel, test)
 table(Predicted = testOutcome, Tagged = test$growth)
@@ -333,50 +340,45 @@ plot(svmModel, data = test, busFormed ~ population)
 ```
 
 ##SVM as regression
-## Train/test split
+Train/test split
 ```{r}
 #set.seed(7)
 finalDF2 <- finalDF[,c(2:5)]
 dt <- createDataPartition(growth, times = 1, p = 0.7, list = FALSE)
-#dt = sort(sample(nrow(finalDF2), replace = TRUE, nrow(finalDF2)*.7))
 train<-finalDF2[dt,]
 test<-finalDF2[-dt,]
 str(train)
 ```
 
-
 ```{r}
 svmModel <- svm(busFormed ~., data = train, kernel = "linear")
 svmModel
 ```
-
 ```{r}
+##I looked at https://www.r-bloggers.com/machine-learning-using-support-vector-machines/ by Perceptive analytics for direction on using svm for regression compared to lm().
+plot(train$population, train$bus, col = "red")
+modelLm <- lm(busFormed ~ population, train)
+abline(modelLm)
 model2 <- svm(busFormed~population, train)
-predictedY <- predict(model2, test)
-plot(test$population, predictedY, col = "red", pch = 4)
-#pred <- predict(svmModel, test)
-#x = 1: length(test$busFormed)
-#plot(x, test$busFormed, pch=18, col="red")
-#lines(x, pred, lwd='1', col="blue")
+predictedY <- predict(model2, data = train)
+points(train$population, predictedY, col = "green", pch = 16)
 ```
-
-
-
-
+From the plot, it looks like the svm() regression is more accurate than the lm() regression
 ```{r}
-
-#mse <- mse(test$busFormed, pred)
-#mae = MAE(test$busFormed, pred)
-#rmse = RMSE(test$busFormed, pred)
-#r2 = R2(test$busFormed, pred, form = "traditional")
- 
-#cat(" MAE:", mae, "\n", "MSE:", mse, "\n", 
-#     "RMSE:", rmse, "\n", "R-squared:", r2)
+predLm <- predict(modelLm, test)
+rmse(test$busFormed, predLm)
 ```
+And it looks like the rmse is less for svm(), meaning the regression model is a better fit.
+```{r}
+predictedY <- predict(model2, test)
+rmse(test$busFormed, predictedY)
+```
+#Results
+I began with basic linear regression based on correlations between dependent an independent variables. Correlations seemed ok to good. I ran linear regression for business formation growth and population and the model turned out to fit the data well according to the summary values. Then I thought I could do cluster analysis starting off with kmeans. I ran an elbow plot to find the best number of clusters and it turned out to be two clusters. That did not bode well for the high, medium, and low labels that I planned to use later. When I ran kmeans with k = 3 the resulting cluster numbers were vastly different from the 3 groups I had intuitively believed would result. Therefore, I abandoned any further pursuit of cluster analysis. Instead, I decided I would continue on with multiple linear regression since each of the variables had ok correlation. The multiple linear model resulted in a low p-value for the model itself but the only variable that was significant was population. I fed the training and test data into a support vector machine and the results looked good. The svm classified the test data with 96% accuracy. Since svm() worked well classifying the data maybe it would work well for regression. SVM for regression is new for me so I had to get guidance from https://www.r-bloggers.com/machine-learning-using-support-vector-machines/ by Perceptive analytics. Regression using svm() did have slightly better results than lm() based on the root mean square error . Still, the rmse was high.
 
+#Conclusion
+I can not reject the null hypothesis for the children or home price variable as the p-value was not always low depending on what set.seed() had as a seed. For this project differences are due to chance. However, in every run of the multiple linear regression with a different seed, population had a p-value below 0.05 leading me to reject the null hypothesis. Population differences are not due to chance and are significant. Prediction of business registration growth can be made based on population but individuals own children under 18 living at home and home value can not be used as predictors at this time. Using all three variables together can accurately classify the area that the variables derived from as being high, medium, or low business registration growth.
 
+This project has definitely challenged me. The problem source for this paper was initial east to get from https://data.colorado.gov/Business/Business-Entities-in-Colorado/4ykn-tg5h but I had to manually record the zip code based 2010 population data one zip code at a time. The Zillow home value index took even more time for each zip code as I had to navigate to June 2010’s value. Also, in several zip codes there was no value so I had to look at adjacent zip codes and even towns in those zip codes. Defining the problem as business registration growth prediction was not too difficult but the problem difficulty seemed to get worse the further into the data and calculations that I dug. Again, because of the dispersed data and missing values there was some difficulty in data collection. The data turned out to be fairly difficult because of missing and messy data. I spent a lot of time cleaning the data due to unwanted NAs, zip codes, and non Colorado home states. Data inspection also took a long time. Once I thought I had narrowed the data to what I needed, I inspected it and found more unwanted data. I winnowed the data down from almost 2 million observations down to 90. For feature engineering I had to extract dissolved businesses and their years, I had to transform character data to numerical data and in the opposite direction. For feature selection, I had to reduce fields and add new fields based on data from other fields. For this project I used R exclusively with manual web scraping. I used new r packages such as Metrics, and factoextra. Since I was using Rstudio it was easy to install the packages but I still had to learn the modules that I needed. A machine learning methods in this project would be svm(). Business intelligence developed in this project is the correlation of population to business registration growth, giving insight into growing home state business. I tried to develop a prediction model using both lm() and svm() in this project. I had to accept the null hypothesis for two of my variables because they were not appropriate for the analysis methods. I initially chose an imbalanced set for the training data set. Once I realized the imbalance was throwing the numbers off, I went back and used a new method to randomly select a training set that was balanced in factor count. In order to move forward I had to discover and utilize new R packages and methods.Unfortunately, time management was a huge problem for me. I ended up choosing a project that had to be scrapped at the 2 and a half week mark. I have definitely learned to be pickier in my projects.
 
-
-Fix SVM - take out growth factor
-do cluster analysis
 
